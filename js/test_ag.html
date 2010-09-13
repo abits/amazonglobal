@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="charset=utf-8" />
+<!--    <meta http-equiv="Pragma" content="no-cache"> 
+		<meta http-equiv="Cache-Control" content="no-cache"> 
+		<meta http-equiv="Expires" content="Thu, 01 Dec 1994 16:00:00 GMT"> -->
+        <title>test_ag.js</title>
+        <script src="../lib/jquery/jquery-1.4.2.min.js"></script>
+		<script src="ag.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+
+				test_RequestHandler('keywords');
+				test_RequestHandler('asin');
+				//test_RequestHandler('empty');
+				});
+			function toString(object){
+				var str = new String;
+				if (object.constructor == Array) {
+					for (var k = 0; k < object.length; k++) {
+						str += '\t\t=> ' + toString(object[k]) + '\n';
+					}
+				}
+				if (object.constructor == Object) {
+					for (var i in object) {
+						str += i + ': ' + object[i] + '; ';
+					}		
+				}
+				return str;
+			}
+			function test_RequestHandler(type) {
+				var testInput = {};
+				switch (type) {
+					case 'keywords':
+						testInput = {
+							'searchIndex': 'All',
+							'keywords': 'The National',
+							'sites': ['UK']
+						};
+						break;
+					case 'asin':
+						testInput = {
+							'asin': 'B003BKF696',
+							'sites': ['DE', 'UK', 'US', 'CA', 'JP', 'FR']
+						};
+						break;
+					case 'empty':
+						testInput = {};
+				}
+				console.log('Testing RequestHandler with type ' + type + ':');
+				var test_rH = new RequestHandler();
+				test_rH.initRequest(testInput);
+				// test output
+				// method initRequest
+				console.log('\t-> Testing method initRequest with testInput: \n' 
+						+ '\t\t=> ' + toString(testInput));
+
+				//console.log(toString(test_rH.requests));
+				test_rH.queryServer();
+				//
+			}
+		</script>
+    </head>
+    <body><p style="font: 12px monospace">Hit F12 to see Firebug console output!</p>
+    </body>
+</html>
