@@ -1,4 +1,5 @@
 <?php
+   // ob_start("ob_gzhandler");
 	// http://www.thewhyandthehow.com/building-an-ajax-content-proxy-in-php/
 	function remote_load($uri, $timeout = 10, $connect_timeout = 3) {
 		$curl_handle = curl_init();

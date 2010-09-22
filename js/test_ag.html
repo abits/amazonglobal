@@ -10,10 +10,15 @@
 		<script src="ag.js"></script>
         <script type="text/javascript">
             $(document).ready(function() {
-
-				test_RequestHandler('keywords');
-				test_RequestHandler('asin');
-				//test_RequestHandler('empty');
+				$('#btn_test_kw').click(function(){
+					test_RequestHandler('keywords')
+				});
+	       		$('#btn_test_asin').click(function(){
+					test_RequestHandler('asin')
+				});
+				$('#storage').ajaxStop(function() {
+						var coll = new Collector();
+						coll.present();
 				});
 			function toString(object){
 				var str = new String;
@@ -36,7 +41,7 @@
 						testInput = {
 							'searchIndex': 'All',
 							'keywords': 'The National',
-							'sites': ['UK']
+							'sites': ['DE']
 						};
 						break;
 					case 'asin':
@@ -60,8 +65,34 @@
 				test_rH.queryServer();
 				//
 			}
+		});
 		</script>
+		<style type="text/css">
+			.btn {
+				font: 12px sans;
+				text-align: center;
+				border: 1px solid black; 
+				padding: 6px;
+				width: 160px;
+				-moz-border-radius: 5px;
+				-moz-box-shadow: 2px 2px 2px #888;
+				background-color: #eee;
+			}
+		</style>
+		
     </head>
     <body><p style="font: 12px monospace">Hit F12 to see Firebug console output!</p>
+	<p><div id="btn_test_kw" class="btn">test keywords search</div></p>
+	<p><div id="btn_test_asin" class="btn">test asin search</div></p>
+	<p><div id="reset" class="btn" onClick="window.location.reload()">reset</div></p>
+	<div id="storage" style="display: none">
+		<div id="storage_kw" class="store_item_asin" style="display: none"></div>
+		<div id="storage_ca" class="store_item_asin" style="display: none"></div>
+		<div id="storage_de" class="store_item_asin" style="display: none"></div>
+		<div id="storage_fr" class="store_item_asin" style="display: none"></div>
+		<div id="storage_jp" class="store_item_asin" style="display: none"></div>
+		<div id="storage_uk" class="store_item_asin" style="display: none"></div>
+		<div id="storage_us" class="store_item_asin" style="display: none"></div>
+	</div>
     </body>
 </html>
