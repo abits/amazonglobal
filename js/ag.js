@@ -141,8 +141,10 @@ RequestHandler.prototype.initRequest = function(input) {
 RequestHandler.prototype.queryServer = function() {
 	//determine proxy target
 	if (this.context == 'keywords' && this.sites.length == 1) {
+		RequestHandler.COLL.toggleBusy('#output table', true);
 		jQuery.ajax({
 			type: 'GET',
+			//timeout: 5000,
 			url: RequestHandler.setHost(this.sites[0]),
 			dataType: 'xml',
 			data: this.parameters,
@@ -152,8 +154,10 @@ RequestHandler.prototype.queryServer = function() {
 	}
 	if (this.context == 'asin') {
 		for (var j = 0; j < this.sites.length; j++) {
+			RequestHandler.COLL.toggleBusy('#output table', true);
 			jQuery.ajax({
 				type: 'GET',
+				//timeout: 5000,
 				url: RequestHandler.setHost(this.sites[j]),
 				dataType: 'xml',
 				data: this.parameters,
@@ -205,8 +209,8 @@ Parser.prototype.parse = function(xml, context) {
 			item.title = tit.toTitleCase();
 			item.thumbnail = $(this).find('ThumbnailImage:first').find('URL:first').text();
 			item.site = site;
-			item.amount = $(this).find('ListPrice').find('Amount').text();
-			item.currency = $(this).find('ListPrice').find('CurrencyCode').text();
+			item.amount = $(this).find('Price').find('Amount').text() || $(this).find('LowestNewPrice').find('Amount').text() || $(this).find('LowestUsedPrice').find('Amount').text();
+			item.currency = $(this).find('Price').find('CurrencyCode').text() || $(this).find('LowestNewPrice').find('CurrencyCode').text() || $(this).find('LowestUsedPrice').find('CurrencyCode').text();
 			item.link = $(this).find('DetailPageURL').text();
 			results.push(item);			
 		}
@@ -245,12 +249,119 @@ function Collector() {
 	this.asUS_result = {};
 	}
 
-Collector.buildInfoNodes = function(context, site, storage){	
-	//console.log(storage);
-	//console.log(storage.US.asin);
-	
-	function descendingPrices(a, b) {
-		return a.amountEUR - b.amountEUR; 
+
+Collector.ascendingBinding = function(a,b) {
+	return ((a.binding == b.binding) ? 0 : ((a.binding > b.binding) ? 1 : -1 ));
+}
+
+Collector.descendingPrice = function(a, b){
+	if (a.hasOwnProperty('localAmount') && b.hasOwnProperty('localAmount')) {
+		return parseFloat(a.localAmount) - parseFloat(b.localAmount);
+	} else if (a.hasOwnProperty('localAmount')) {
+		return -1;
+	} else if (b.hasOwnProperty('localAmount')) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+Collector.buildTable = function(context, site, storage){	
+	if (context == 'keywords') {
+		var rows = [];
+		$(storage).each(function(index, item) {
+			var row = document.createElement('tr');
+			row.setAttribute("asin", item['asin']);
+			var img_field = document.createElement('td');
+			img_field.setAttribute('asin', item['asin']);
+			img_field.setAttribute('class', 'thumb');
+			var img = new Image();
+			img.src = item['thumbnail'];
+			img_field.appendChild(img);
+			row.appendChild(img_field);
+
+			var info_field = document.createElement('td');
+			info_field.setAttribute('asin', item['asin']);
+			info_field.setAttribute('class', 'info');
+			var binding = document.createTextNode(item['binding']);
+			var artist = document.createTextNode(item['artist']);
+			var title = document.createTextNode(item['title']);
+			info_field.appendChild(binding);
+			info_field.appendChild(document.createElement('br'));
+			info_field.appendChild(artist);
+			info_field.appendChild(document.createElement('br'));
+			info_field.appendChild(title);
+			row.appendChild(info_field);
+			rows.push(row);
+		});
+		var table = document.createElement('table');
+		table.setAttribute("context", 'keywords');
+		$(rows).each(function(index, item) {
+			table.appendChild(item);
+		});
+		$('#output').html(table);
+		//console.log(table);
+		}
+	if (context == 'asin') {
+		//console.log(storage);
+		var rows = [];
+		$(storage).each(function(index, item) {
+			var row = document.createElement('tr');
+			row.setAttribute("asin", item['asin']);
+			var img_field = document.createElement('td');
+			img_field.setAttribute('asin', item['asin']);
+			img_field.setAttribute('class', 'thumb');
+			var img = new Image();
+			img.src = item['thumbnail'];
+			img_field.appendChild(img);
+			row.appendChild(img_field);
+
+			var info_field = document.createElement('td');
+			info_field.setAttribute('asin', item['asin']);
+			info_field.setAttribute('class', 'info');
+			var binding = document.createTextNode(item['binding']);
+			var artist = document.createTextNode(item['artist']);
+			var title = document.createTextNode(item['title']);
+			info_field.appendChild(binding);
+			info_field.appendChild(document.createElement('br'));
+			info_field.appendChild(artist);
+			info_field.appendChild(document.createElement('br'));
+			info_field.appendChild(title);
+			row.appendChild(info_field);
+			
+			var offer_field = document.createElement('td');
+			offer_field.setAttribute('asin', item['asin']);
+			offer_field.setAttribute('class', 'offer');
+			var currencyParameters = CurrencyConverter.setCurrencyCode(site);
+			var amountMult = item['amount'] * currencyParameters.mult;
+			amountMult = CurrencyConverter.rount(amountMult);
+			var amount = document.createTextNode(amountMult + ' ' + item['currency']);
+			offer_field.appendChild(amount);
+			if (item['currency'] != currencyParameters.fromCurrency && item['localAmount'] != undefined) {
+				offer_field.appendChild(document.createElement('br'));
+				var localAmount = document.createTextNode(item['localAmount'] +
+				' ' + currencyParameters.fromCurrency);
+				offer_field.appendChild(localAmount);
+			}
+			offer_field.appendChild(document.createElement('br'));
+			var offerLink = document.createElement('a');
+			offerLink.setAttribute("href", item['link']);
+			offerLink.setAttribute("target", "_blank");
+			var offerSite = document.createTextNode(item['site']);
+			offerLink.appendChild(offerSite);
+			offer_field.appendChild(offerLink);
+			row.appendChild(offer_field);
+			
+			rows.push(row);
+		});
+	//console.log(rows);
+	var asin_table = document.createElement('table');
+	asin_table.setAttribute("context", 'asin');
+	$(rows).each(function(index, item) {
+		asin_table.appendChild(item);
+	});
+	$('#output').html(asin_table);
+	//console.log(asin_table);
 	}
 };
 
@@ -264,8 +375,11 @@ Collector.readStorage = function(context) {
 	}
 	if (context == 'asin') {
 		var store = [];
-		$('.store_item_kw').each(function(index, item) {
-			store.push(JSON.parse($(this).html()));	
+		$('.store_item_asin').each(function(index, item) {
+			//console.log($(this).html());
+			if ($(this).html()) {
+				store.push(JSON.parse($(this).html()));
+			}
 		})
 	}
 	if (context == 'CA') {
@@ -316,18 +430,32 @@ Collector.readStorage = function(context) {
 Collector.prototype.present = function() { 
 // we really want this when e'thing's loaded...
 	var context = $('#storage').attr('class');
-
 	if (context == 'keywords') {
 		var kw_storage = Collector.readStorage('keywords');
-		//console.log(kw_storage);
+		var kw_storage_sorted = kw_storage.sort(Collector.ascendingBinding);
+		Collector.buildTable(context, kw_storage[0].site, kw_storage);
+		$('tr[asin]').click(function() {
+			var input = {
+				'asin': $(this).attr('asin'),
+				'sites': ['DE', 'UK', 'US', 'CA', 'JP', 'FR']
+				};
+				//console.log($(this));	
+				var rH = new RequestHandler();
+				rH.initRequest(input);
+	//			console.log('\t-> Testing method initRequest with testInput: \n' 
+	//						+ '\t\t=> ' + toString(input));
+	//			console.log(toString(test_rH.requests));
+				rH.queryServer();				
+			});
 	}
 	if (context == 'asin') {
+		//console.log('present asin search');
 		var kw_storage = Collector.readStorage('keywords');
 		var asin_storage = Collector.readStorage('asin');
 		//console.log(asin_storage);
+		var asin_storage_sorted = asin_storage.sort(Collector.descendingPrice);
+		Collector.buildTable(context, kw_storage[0].site, asin_storage);
 	}
-	
-	// sort storage by EUR price
 };
 
 /**
@@ -351,6 +479,7 @@ Collector.prototype.store = function(result, context){
 		$('#storage').toggleClass('asin', true);
 		switch (result.site) {
 			case 'CA':
+				//console.log(result.results);
 				$('#storage_ca').html(JSON.stringify(result.results));
 				converter.convert(result.results.amount, 'CA', to);
 				break;
@@ -377,6 +506,23 @@ Collector.prototype.store = function(result, context){
 	}
 }
 
+Collector.prototype.toggleBusy = function(elementSelector, state) {
+	if (state == true) {
+		//$(elementSelector).css('opacity', '0.2');
+		$(elementSelector).fadeOut('slow');
+		if ($('#output').children('#busy').length == 0) {
+			var busy = new Image();
+			busy.setAttribute('id', 'busy');
+			busy.src = '../res/ajax-loader.gif';
+			document.getElementById("output").appendChild(busy);
+		}
+	} else if (state == false) {
+		$('#busy').css('display', 'none');
+		$('#output').remove('#busy');
+		$(elementSelector).fadeIn('slow');
+		//$(elementSelector).css('opacity', '1');
+	}
+}
 
 /*
  * JavaScript port of John Gruber's TitleCase Perl script:
@@ -474,6 +620,43 @@ CurrencyConverter.rount = function(x) {
 }
 
 
+CurrencyConverter.setCurrencyCode = function(from) {
+	var fromCurrency = ''
+	var mult = 1;
+	switch (from) {
+		case "CA":
+			fromCurrency = 'CAD';
+			mult = 0.01;
+			break;
+		case "DE":
+			fromCurrency = 'EUR';
+			mult = 0.01;
+			break;
+		case "FR":
+			fromCurrency = 'EUR';
+			mult = 0.01;
+			break;
+		case "JP":
+			fromCurrency = 'JPY';
+			mult = 1;
+			break;
+		case "UK":
+			fromCurrency = 'GBP';
+			mult = 0.01;
+			break;
+		case "US":
+			fromCurrency = 'USD';
+			mult = 0.01;
+			break;
+		default:
+			fromCurrency = '';
+			mult = 1;
+		}
+	return {'fromCurrency' : fromCurrency,
+			 'mult' : mult
+			 };
+}
+
 CurrencyConverter.setHost = function(site){
 	switch (site) {
 		case 'CA':
@@ -498,260 +681,78 @@ CurrencyConverter.setHost = function(site){
 
 CurrencyConverter.ajaxSucceeded = function(site){
 	return function(data, statusText){
+		if (data != null) {
 		switch (site) {
 			case 'CA':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('CA');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
 				$('#storage_ca').html(JSON.stringify(item));
 				break;
 			case 'DE':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('DE');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
-				$('#storage_ca').html(JSON.stringify(item));
+				$('#storage_de').html(JSON.stringify(item));
 				break;
 			case 'FR':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('FR');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
 				$('#storage_fr').html(JSON.stringify(item));
 				break;
 			case 'JP':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('JP');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
 				$('#storage_jp').html(JSON.stringify(item));
 				break;
 			case 'UK':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('UK');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
 				$('#storage_uk').html(JSON.stringify(item));
 				break;
 			case 'US':
 				var localAmount = CurrencyConverter.rount(parseFloat(data.rhs));
 				var store = Collector.readStorage('US');
-				item = store[0];
+				var item = store[0];
 				item['localAmount'] = localAmount;
 				$('#storage_us').html(JSON.stringify(item));
-				break;				
+				break;
+		}		
 		}
 	}
 }
 	
-	CurrencyConverter.prototype.queryServer = function(parameters, site){
-		jQuery.ajax({
-			type: 'GET',
-			url: CurrencyConverter.setHost(site),
-			dataType: 'json',
-			data: parameters,
-			success: CurrencyConverter.ajaxSucceeded(site),
-			error: function(xhr, status, error){
-				console.log('ajax error: ' + status + ' ' + error)
-			},
-		});
-	}
+CurrencyConverter.prototype.queryServer = function(parameters, site){
+	jQuery.ajax({
+		type: 'GET',
+		url: CurrencyConverter.setHost(site),
+		dataType: 'json',
+		data: parameters,
+		success: CurrencyConverter.ajaxSucceeded(site),
+		error: function(xhr, status, error){
+			console.log('ajax error: ' + status + ' ' + error)
+		},
+	});
+}
 	
-	CurrencyConverter.prototype.convert = function(amount, from, to){
-		var fromCurrency = '';
-		var mult = 1.0;
-		switch (from) {
-			case "CA":
-				fromCurrency = 'CAD';
-				mult = 0.01;
-				break;
-			case "DE":
-				fromCurrency = 'EUR';
-				mult = 0.01;
-				break;
-			case "FR":
-				fromCurrency = 'EUR';
-				mult = 0.01;
-				break;
-			case "JP":
-				fromCurrency = 'JPY';
-				break;
-			case "UK":
-				fromCurrency = 'GBP';
-				mult = 0.01;
-				break;
-			case "US":
-				fromCurrency = 'USD';
-				mult = 0.01;
-				break;
-		}
-		var queryString = (amount * mult) + fromCurrency + '=?' + to;
-		var parameters = {
-			'q': queryString
-		};
-		this.queryServer(parameters, from);
-	}
-/*
-    http://www.JSON.org/json2.js
-    2010-08-25
-
-    Public Domain.
-
-    NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
-
-    See http://www.JSON.org/js.html
-
-
-    This code should be minified before deployment.
-    See http://javascript.crockford.com/jsmin.html
-
-    USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
-    NOT CONTROL.
-
-
-    This file creates a global JSON object containing two methods: stringify
-    and parse.
-
-        JSON.stringify(value, replacer, space)
-            value       any JavaScript value, usually an object or array.
-
-            replacer    an optional parameter that determines how object
-                        values are stringified for objects. It can be a
-                        function or an array of strings.
-
-            space       an optional parameter that specifies the indentation
-                        of nested structures. If it is omitted, the text will
-                        be packed without extra whitespace. If it is a number,
-                        it will specify the number of spaces to indent at each
-                        level. If it is a string (such as '\t' or '&nbsp;'),
-                        it contains the characters used to indent at each level.
-
-            This method produces a JSON text from a JavaScript value.
-
-            When an object value is found, if the object contains a toJSON
-            method, its toJSON method will be called and the result will be
-            stringified. A toJSON method does not serialize: it returns the
-            value represented by the name/value pair that should be serialized,
-            or undefined if nothing should be serialized. The toJSON method
-            will be passed the key associated with the value, and this will be
-            bound to the value
-
-            For example, this would serialize Dates as ISO strings.
-
-                Date.prototype.toJSON = function (key) {
-                    function f(n) {
-                        // Format integers to have at least two digits.
-                        return n < 10 ? '0' + n : n;
-                    }
-
-                    return this.getUTCFullYear()   + '-' +
-                         f(this.getUTCMonth() + 1) + '-' +
-                         f(this.getUTCDate())      + 'T' +
-                         f(this.getUTCHours())     + ':' +
-                         f(this.getUTCMinutes())   + ':' +
-                         f(this.getUTCSeconds())   + 'Z';
-                };
-
-            You can provide an optional replacer method. It will be passed the
-            key and value of each member, with this bound to the containing
-            object. The value that is returned from your method will be
-            serialized. If your method returns undefined, then the member will
-            be excluded from the serialization.
-
-            If the replacer parameter is an array of strings, then it will be
-            used to select the members to be serialized. It filters the results
-            such that only members with keys listed in the replacer array are
-            stringified.
-
-            Values that do not have JSON representations, such as undefined or
-            functions, will not be serialized. Such values in objects will be
-            dropped; in arrays they will be replaced with null. You can use
-            a replacer function to replace those with JSON values.
-            JSON.stringify(undefined) returns undefined.
-
-            The optional space parameter produces a stringification of the
-            value that is filled with line breaks and indentation to make it
-            easier to read.
-
-            If the space parameter is a non-empty string, then that string will
-            be used for indentation. If the space parameter is a number, then
-            the indentation will be that many spaces.
-
-            Example:
-
-            text = JSON.stringify(['e', {pluribus: 'unum'}]);
-            // text is '["e",{"pluribus":"unum"}]'
-
-
-            text = JSON.stringify(['e', {pluribus: 'unum'}], null, '\t');
-            // text is '[\n\t"e",\n\t{\n\t\t"pluribus": "unum"\n\t}\n]'
-
-            text = JSON.stringify([new Date()], function (key, value) {
-                return this[key] instanceof Date ?
-                    'Date(' + this[key] + ')' : value;
-            });
-            // text is '["Date(---current time---)"]'
-
-
-        JSON.parse(text, reviver)
-            This method parses a JSON text to produce an object or array.
-            It can throw a SyntaxError exception.
-
-            The optional reviver parameter is a function that can filter and
-            transform the results. It receives each of the keys and values,
-            and its return value is used instead of the original value.
-            If it returns what it received, then the structure is not modified.
-            If it returns undefined then the member is deleted.
-
-            Example:
-
-            // Parse the text. Values that look like ISO date strings will
-            // be converted to Date objects.
-
-            myData = JSON.parse(text, function (key, value) {
-                var a;
-                if (typeof value === 'string') {
-                    a =
-/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z$/.exec(value);
-                    if (a) {
-                        return new Date(Date.UTC(+a[1], +a[2] - 1, +a[3], +a[4],
-                            +a[5], +a[6]));
-                    }
-                }
-                return value;
-            });
-
-            myData = JSON.parse('["Date(09/09/2001)"]', function (key, value) {
-                var d;
-                if (typeof value === 'string' &&
-                        value.slice(0, 5) === 'Date(' &&
-                        value.slice(-1) === ')') {
-                    d = new Date(value.slice(5, -1));
-                    if (d) {
-                        return d;
-                    }
-                }
-                return value;
-            });
-
-
-    This is a reference implementation. You are free to copy, modify, or
-    redistribute.
-*/
-
-/*jslint evil: true, strict: false */
-
-/*members "", "\b", "\t", "\n", "\f", "\r", "\"", JSON, "\\", apply,
-    call, charCodeAt, getUTCDate, getUTCFullYear, getUTCHours,
-    getUTCMinutes, getUTCMonth, getUTCSeconds, hasOwnProperty, join,
-    lastIndex, length, parse, prototype, push, replace, slice, stringify,
-    test, toJSON, toString, valueOf
-*/
-
-
-// Create a JSON object only if one does not already exist. We create the
-// methods in a closure to avoid creating global variables.
+CurrencyConverter.prototype.convert = function(amount, from, to){
+	var currencyParameter = CurrencyConverter.setCurrencyCode(from);
+	var fromCurrency = currencyParameter.fromCurrency;
+	var mult = currencyParameter.mult;
+	var queryString = (amount * mult) + fromCurrency + '=?' + to;
+	var parameters = {
+		'q': queryString
+	};
+	this.queryServer(parameters, from);
+}
 
 if (!this.JSON) {
     this.JSON = {};
