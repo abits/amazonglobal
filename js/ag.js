@@ -1,12 +1,102 @@
 /** AmazonGlobal - compare prices of Amazon international stores.
- * ag.js: local backend of AmazonGlobal package.  Handles user input,
+ * ag.js: local backend/frontend of AmazonGlobal package.  Handles user input,
  * parses and collects server response data.  Makes collected data 
- * available for local frontend.
+ * available for local browser presentation.
  * @author Chris <accidentalbits@googlemail.com> 
  * @version 0.1
  */
 
+/**
+ * @classDescription Queries AWS proxy for product data.
+ * @constructor
+ */
+function InputHandler() {
+	console.log('input handler instantiated.');
+	this.context = "newsearch";
+	this.sites = [];
+	this.keywords = "";
+	this.asin = "";
+	this.searchIndex = "All"; // FIXME, need selectable drop-down
+}
 
+InputHandler.prototype.getUserInput = function(context) {
+	// return dict
+	var input = {};
+	switch (context) {
+		case 'keywords':
+			input = {
+				'searchIndex': this.searchIndex,
+				'keywords': this.keywords,
+				'sites': this.sites
+			};
+			break;
+		case 'asin':
+			input = {
+				'asin': this.asin,
+				'sites': this.sites
+			};
+			break;
+	}	
+	return input;
+};
+
+InputHandler.prototype.handleKeywordsChoice = function(context, userInput) {
+	//console.log(context, userInput);
+	if (context == 'keywords') {
+		// don't search for the default value!
+		if (!$('#ipt_keywords').hasClass('default')) {
+			this.keywords = userInput;
+			// check if we got a flag choice, else go with default
+			if (this.sites.length == 0) {
+				this.handleFlagChoice($('#DE'), context); // FIXME, Germany is default
+			}
+			var input = this.getUserInput(context);
+			var rH = new RequestHandler()
+			rH.initRequest(input);
+			rH.queryServer();
+		}
+	}
+}
+
+
+
+InputHandler.prototype.handleFlagChoice = function(flag, context){
+	if (context == 'keywords') {
+		// only one flag is allowed; so unset all first and clear array
+		InputHandler.unsetFlags();
+		InputHandler.toggleFlag(flag);
+		this.sites = [];
+		this.sites.push($(flag).attr('id'));
+	} else if (context == 'keywords') {
+		// multiple choices are allowed, 
+		// test if we already registered this choice
+		if ($.inArray($(flag).attr('id'), this.sites) > -1) {
+			// we already have it, so remove it and toggle flag
+			this.sites = $.grep(this.sites, function(v){
+				return v != $(flag).attr('id');
+			})
+		} else {
+			// else add it
+			this.sites.push($(flag).attr('id'));
+		}
+		// then toggle flag
+		InputHandler.toggleFlag(flag);
+		console.log(this.getUserInput(context));
+	}
+}
+
+InputHandler.unsetFlags = function() {
+	$('#flags img').css('-moz-box-shadow', '2px 2px 2px #888');
+}
+
+InputHandler.toggleFlag = function(flag) {
+	if (flag.css('-moz-box-shadow') == 'rgb(136, 136, 136) 0px 0px 0px 0px') {
+		flag.css('-moz-box-shadow', '2px 2px 2px #888');
+	} else {
+		flag.css('-moz-box-shadow', '0px 0px 0px #888');
+	}
+}
+//===========================================================================//
 /**
  * @classDescription Queries AWS proxy for product data.
  * @constructor
@@ -95,10 +185,21 @@ RequestHandler.ajaxSucceeded = function(context, site) {
  */	
 RequestHandler.ajaxFailed = function(context, site) {
 	return function(xhr, status, error) {
-		console.log('ajax failed: ' + context + ' ' + site);
+		if (context == 'keywords') {
+			console.log("error");
+			$('#busy').css('display', 'none');
+			$('#output').remove('#busy');
+			var message = document.createElement('div');
+			var text = document.createTextNode('Oops.  Connection failed.  Try again.');
+			message.appendChild(text);
+			message.setAttribute('id', 'networkErrorMessage');
+			$('#output').append(message);
+		}
+		if (context == 'asin') {
+			console.log('asin lookup failed');
+		}
 	}
 };
-
 
 // instance methods
 /**
@@ -168,7 +269,7 @@ RequestHandler.prototype.queryServer = function() {
 	}
 }
 
-
+//===========================================================================//
 /**
  * @classDescription Parses server data.
  * @constructor
@@ -232,7 +333,7 @@ Parser.prototype.parse = function(xml, context) {
 	return parsed;
 }
 
-
+//===========================================================================//
 /**
  * @classDescription Collects data from server queries for table visualization.
  * @constructor
@@ -249,6 +350,11 @@ function Collector() {
 	this.asUS_result = {};
 	}
 
+
+Collector.restoreKeywordSearch = function() {
+	var coll = new Collector();
+	coll.present('keywords');  
+}
 
 Collector.ascendingBinding = function(a,b) {
 	return ((a.binding == b.binding) ? 0 : ((a.binding > b.binding) ? 1 : -1 ));
@@ -427,9 +533,11 @@ Collector.readStorage = function(context) {
  * @method Presents json result objects as table elements and adds them to page.
  * @return {Object} table elements
  */
-Collector.prototype.present = function() { 
+Collector.prototype.present = function(context) { 
 // we really want this when e'thing's loaded...
-	var context = $('#storage').attr('class');
+	if (!context) {
+		context = $('#storage').attr('class');
+	}
 	if (context == 'keywords') {
 		var kw_storage = Collector.readStorage('keywords');
 		var kw_storage_sorted = kw_storage.sort(Collector.ascendingBinding);
@@ -508,8 +616,8 @@ Collector.prototype.store = function(result, context){
 
 Collector.prototype.toggleBusy = function(elementSelector, state) {
 	if (state == true) {
-		//$(elementSelector).css('opacity', '0.2');
 		$(elementSelector).fadeOut('slow');
+		$('#output table').slideUp('fast');
 		if ($('#output').children('#busy').length == 0) {
 			var busy = new Image();
 			busy.setAttribute('id', 'busy');
@@ -520,7 +628,7 @@ Collector.prototype.toggleBusy = function(elementSelector, state) {
 		$('#busy').css('display', 'none');
 		$('#output').remove('#busy');
 		$(elementSelector).fadeIn('slow');
-		//$(elementSelector).css('opacity', '1');
+		$('#output table').slideDown('fast');
 	}
 }
 
@@ -610,6 +718,8 @@ String.prototype.toTitleCase = function() {
     return title;
 }
 
+
+//===========================================================================//
 function CurrencyConverter() {
 }
 
@@ -754,6 +864,8 @@ CurrencyConverter.prototype.convert = function(amount, from, to){
 	this.queryServer(parameters, from);
 }
 
+
+//===========================================================================//
 if (!this.JSON) {
     this.JSON = {};
 }
