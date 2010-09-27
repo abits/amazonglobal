@@ -10,17 +10,46 @@
         <script src="../lib/jquery/jquery-1.4.2.min.js"></script>
 		<script src="ag.js"></script>
         <script type="text/javascript">
+			var iH = new InputHandler();
             $(document).ready(function() {
+				$('#ipt_keywords').keypress(function(event) {
+					if (event.keyCode == 13) {
+						$('#btn_test_kw').click();
+					}
+				});
+				$('#ipt_keywords').focus(function() {
+					if ($(this).hasClass('default')) {
+						$(this).val("");
+						$(this).removeClass('default');
+					} else {
+						this.select(); //FIXME better $(this)
+					}
+				});
+				$('#ipt_keywords').blur(function() {
+					if ($(this).val() == "") {
+						$(this).addClass('default');
+						$(this).val('enter search terms here');
+					}
+				});
 				$('#btn_test_kw').click(function(){
-					test_RequestHandler('keywords')
+						var context = $('#storage').attr('class');
+						var userInput = $('#ipt_keywords').val();
+						iH.handleKeywordsChoice(context, userInput);
 				});
 	       		$('#btn_test_asin').click(function(){
 					test_RequestHandler('asin')
 				});
+	       		$('#btn_restore').click(function(){
+					Collector.restoreKeywordSearch();
+				});
+	       		$('#flags img').click(function(){
+					var context = $('#storage').attr('class');
+					iH.handleFlagChoice($(this), context);
+				});
 				$('#storage').ajaxStop(function() {
 						var coll = new Collector();
 						coll.present();
-						RequestHandler.COLL.toggleBusy('#output', false);
+						RequestHandler.COLL.toggleBusy('#output table', false);
 				});
 			function toString(object){
 				var str = new String;
@@ -70,6 +99,9 @@
 		});
 		</script>
 		<style type="text/css">
+			#input ul {
+				list-style: none; 
+			}
 			#input {
 				float: left;
 			}
@@ -98,9 +130,9 @@
 				font: 12px monospace;
 				-moz-border-radius: 5px;
 				-moz-box-shadow: 2px 2px 2px #888;
-				margin-left: 220px;
-				margin-top: 28px;
-				min-height: 120px;
+				margin-left: 240px;
+				margin-top: 14px;
+				min-height: 108px;
 				width: 400px;
 			}
 			#output table {
@@ -108,6 +140,7 @@
 				padding: 6px;
 			}
 			td {
+				padding: 12px;
 				vertical-align: top;
 				user-select: none;
 				-moz-user-select: none;
@@ -115,20 +148,69 @@
 			}
 			#busy {
 				margin-left: 130px;
-				margin-top: 50px;
+				margin-top: 44px;
 			}
+			table img {
+				-moz-box-shadow: 2px 2px 2px #888;	
+			}
+			#flags {
+				text-align: center;
+				border: 1px solid black;
+				padding: 6px;
+				margin-left: 240px;
+				margin-top: 28px;
+				width: 388px;
+				list-style: none;
+				background-color: #eee;
+				-moz-border-radius: 5px;
+				-moz-box-shadow: 2px 2px 2px #888;				
+			}
+			#flags ul {
+				display: inline;
+				margin-left: 0px;
+				padding-left: 0px;	
+			}
+			#flags img {
+				vertical-align: text-bottom;
+				-moz-box-shadow: 2px 2px 2px #888;	
+			}
+			.ipt {
+				font: 12px sans;
+				text-align: left;
+				border: 1px solid black; 
+				padding: 6px;
+				width: 160px;
+				-moz-border-radius: 5px;
+				-moz-box-shadow: 2px 2px 2px #888;
+				cursor: default;
+				background-color: white;
+			}
+			.default {
+				color: grey;
+				font-style: italic;
+			}
+			
 		</style>
     </head>
     <body>
 		<p style="font: 12px monospace">Hit F12 to see Firebug console output!</p>
-			<div id="input">
-			<p><div id="btn_test_kw" class="btn">test keywords search</div></p>
-			<p><div id="btn_test_asin" class="btn">test asin search</div></p>
-			<p><div id="reset" class="btn" onClick="window.location.reload()">reset</div></p>
-			<p><div id="busy"></div></p>
-			</div>
-		<p><div id="output" class="view"></div></p>
-	<div id="storage" style="display: none">
+		<li id="input">
+			<ul><div id="btn_test_kw" class="btn">test keywords search</div></ul>
+			<!--<ul><div id="btn_test_asin" class="btn">test asin search</div></ul>-->
+			<ul><input id="ipt_keywords" class="ipt default" value="enter search terms here"></input></ul>
+			<ul><div id="btn_restore" class="btn">restore keywords results</div></ul>
+			<ul><div id="reset" class="btn" onClick="window.location.reload()">reset</div></ul>
+		</li>
+		<li id="flags">
+			<ul><img id="CA" src="../res/canada.gif" alt="canada flag" /></ul>
+			<ul><img id="DE" src="../res/germany.gif" alt="germany flag" /></ul>
+			<ul><img id="FR" src="../res/france.gif" alt="france flag" /></ul>
+			<ul><img id="JP" src="../res/japan.gif" alt="japan flag" /></ul>
+			<ul><img id="UK" src="../res/uk.gif" alt="uk flag" /></ul>
+			<ul><img id="US" src="../res/us.gif" alt="us flag" /></ul>
+		</li>
+		<div id="output" class="view"></div>
+	<div id="storage" class="newsearch" style="display: none">
 		<div id="storage_kw" style="display: none"></div>
 		<div id="storage_ca" class="store_item_asin" style="display: none"></div>
 		<div id="storage_de" class="store_item_asin" style="display: none"></div>
