@@ -1,0 +1,201 @@
+body {
+	margin: 12px;
+}
+
+header, aside, footer, article {
+	display:block;
+	border-width: 2px;
+	border-style: solid;
+	-moz-border-radius: 5px;
+	padding: 12px;
+	color: white;
+	font-size: 12px;
+}
+
+header, footer {
+	background-color: #9c6;
+	border-color: #8b5;
+	margin-bottom: 12px;
+}
+
+aside {
+	background-color: #69c;
+	border-color: #58b;
+	float:right; 
+	width:34%;
+	margin-bottom: 12px;
+}
+
+article {
+	background-color: #c69;
+	border-color: #b58;
+	float:left; 
+	width:60%
+}
+
+footer {
+	margin-bottom: 0px;
+	margin-top: 12px;
+	clear: both;
+}
+
+small {
+	font-family: 'Reenie Beanie', arial, serif;
+	font-size: 20px;
+}
+
+#search {
+	font-family: arial, serif;
+}
+
+#banner {
+	font-family: 'Reenie Beanie', arial, serif;
+	font-size: 30px;
+	margin-bottom: -12px;
+	margin-top: -36px;
+	padding: 0px;
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+} 
+
+fieldset {
+	border-style: none;
+	margin: -20px 0 0 -20px;
+}
+
+#searchbar {
+	margin-top: -24px;
+	width: 380px; float: left; padding: 15px 150px 15px 20px;
+	background: #fff;
+	border: 3px solid #b1bba7;
+	border-radius: 15px; -moz-border-radius: 15px; -webkit-border-radius: 15px;
+	font: 16px Arial; color: #898989;
+	outline: none; /*Remove Chrome and Safari glows on focus*/
+}
+#searchbar.active {
+	background: #ebf3fc url(bar-bg-active.png) repeat-x;
+	border: 3px solid #abd2ff;
+}
+#searchbtn {
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+	border-style: none;
+	width: 30px; height: 30px; float: left; margin: -14px 0 0 -75px;
+	background: white;
+	font: 28px Arial ; color: #898989;
+	text-indent: 0px;
+	/*background: url(/AmazonGlobal/res/search.png) no-repeat; text-indent: -9999px;*/
+	padding: 10 10 10 10px; /*IE fix*/
+	cursor: pointer;
+}
+#configbox {
+	display: none;
+	clear: both;
+	width: 380px; /*height: 130px;*/
+	margin-top: 0px;
+	float: left; 
+	padding: 20px 155px 0px 15px;
+	background: #fff;
+	border: 3px solid #b1bba7;
+	border-radius: 15px; -moz-border-radius: 15px; -webkit-border-radius: 15px;
+	font-size: 12px;
+	font-family: Arial, Helvetica, sans-serif;
+	color: #898989;
+	outline: none;	
+}
+
+#configbtn {
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+	border-style: none;
+	width: 30px; height: 30px; float: left; margin: -14px 0 0 -45px;
+	background: white;
+	font: 28px Arial ; color: #898989;
+	text-indent: 0px;
+	/*background: url(/AmazonGlobal/res/search.png) no-repeat; text-indent: -9999px;*/
+	padding: 10 10 10 10px; /*IE fix*/
+	cursor: pointer;
+}
+#searchbtn:hover {config
+	color: #69c;
+	background-position: 0 -70px;
+}
+#configbtn:hover {
+	color: #69c;
+	background-position: 0 -70px;
+}
+#exitbtn:hover {
+	color: #69c;
+	background-position: 0 -70px;
+}
+
+.cfb_label {
+	font-style: italic;
+	margin-top: 8px;
+	margin-right: -70px;
+	float: right;
+	clear: both; 
+}
+
+#selectable_stores { 
+	list-style-type: none; 
+	margin: 4px 0 0 10px; 
+	padding: 0; 
+	width: 260px; 
+	float: left;
+	cursor: pointer;
+}
+#selectable_stores li { 
+	width: 60px; 
+	float: left;
+	margin: 2px; 
+	padding: 4px 0px 6px 12px; 
+	/**height: 12px;**/ 
+	}
+#selectable_stores .ui-selecting { 
+	background: #bd8;
+	border-radius: 10px;
+	-moz-border-radius: 10px; 
+	-webkit-border-radius: 10px;
+}
+#selectable_stores .ui-selected { 
+	background: #9c6; color: white;
+	border-radius: 10px; 
+	-moz-border-radius: 10px; 
+	-webkit-border-radius: 10px;
+}
+#selectable_stores li:hover { 
+	color: #69c;
+}
+#selectable_categories { 
+	list-style-type: none; 
+	margin: 4px 0 0 300px; 
+	padding: 0; 
+	width: 160px; 
+	cursor: pointer;
+}
+#selectable_categories li { 
+	margin: 2px; 
+	padding: 4px 0px 6px 12px; 
+	float: left; 
+	width: 40px 
+}
+#selectable_categories li:hover { 
+	color: #69c;
+}
+#selectable_categories .selecting { 
+	background: #bd8; 	
+	border-radius: 10px; 
+	-moz-border-radius: 10px; 
+	-webkit-border-radius: 10px;
+}
+#selectable_categories .selected { 
+	background: #9c6; 
+	color: white; 	
+	border-radius: 10px; 
+	-moz-border-radius: 10px; 
+	-webkit-border-radius: 10px;
+}
