@@ -197,15 +197,15 @@ class ResponseParser {
 		switch ($context) { // quite verbose, but more readable
 			case 'keywords': 
 				foreach($this->xml->Items->Item as $item) {
+					$asin = (string)$item->ASIN;
 					$item_array = array( 
 						"site" => $site,  
-						"asin" => (string)$this->xml->Items->Item->ASIN,
+						"asin" => $asin,
 						"url" => (string)$item->DetailPageURL,
 						"image" => (string)$item->LargeImage->URL,
 						"artist" => ucwords((string)$item->ItemAttributes->Artist),
 						"title" => ucwords((string)$item->ItemAttributes->Title),
 						"binding" => (string)$item->ItemAttributes->Binding);
-					$asin = (string)$item->ASIN;
 					$result_array["$asin"] = $item_array;
 				};				
 				break;

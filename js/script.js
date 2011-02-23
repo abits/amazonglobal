@@ -23,7 +23,7 @@ $.ajaxSetup({
 $(document).ready(function() {
 	$('#searchbar').keypress(function(event) {
 		if (event.keyCode == 13) {
-			$('#searchbtn').click();
+			cb_searchbtn_clicked();
 		}
 	});
 	$('#searchbtn').click(function() {
@@ -317,9 +317,7 @@ Presenter.prototype.add_thumb = function(row, image_url, size) {
 	img_field.setAttribute('class', 'thumb');
 	var img = new Image();
 	img.src = image_url;
-	if (img.width > size) {
-		img.style.width = String(size) + 'px';
-	}
+	img.style.width = String(size) + 'px';
 	img_field.appendChild(img);
 	row.appendChild(img_field);
 	return row;
