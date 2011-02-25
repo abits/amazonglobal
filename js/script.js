@@ -173,21 +173,27 @@ RequestAgent.prototype.query_server = function(parameters) {
  */
 function Presenter(context, data) {
 	this.context = context;
-	this.data = data;
+	this.data = data; // TODO data needs to be converted to array for sorting!
 }
 /**
  * Visualizes the data property of an instance; context-sensitive.
  * @method
  */
 Presenter.prototype.view = function() {
+	console.log('view:');
 	console.log(this.data);
+	// represent data as flat array for table builder
+	var flat_data = this.flatten(this.data); 
+	// default sort by list price ascending
+	var sorter = new Sorter();
+	sorter.field_sort(flat_data, 'local_list_amount', false);
 	switch (this.context) {
 		case 'keywords':
-			var table = this.build_table(this.context, this.data);
-			$('#results > p').replaceWith(table);
+			var table = this.build_table(this.context, flat_data);
+			$('#results > table').replaceWith(table);
 			break;
 		case 'id':
-			var result_table = this.build_table(this.context, this.data);
+			var result_table = this.build_table(this.context, flat_data);
 			$('#results > table').replaceWith(result_table);
 			var product_header = this.build_product_header(this.context, this.data);
 			$('#results').children().prepend(product_header);
@@ -216,7 +222,6 @@ Presenter.prototype.build_product_header = function(context, data) {
 		}
 	return table;
 };
-
 /**
  * @param $context
  * @param $data
@@ -225,54 +230,63 @@ Presenter.prototype.build_product_header = function(context, data) {
 Presenter.prototype.build_table = function(context, data) {
 	var table = document.createElement('table');
 	switch (context) {
-		case 'keywords':
-			table.setAttribute('class', 'keywords');
-			for (var product in data) {
-					var row = document.createElement('tr');
-					row.setAttribute('id', data[product].asin);
-					row = this.add_thumb(row, data[product].image, 150);
-					var fields = {
-							'artist': data[product].artist,
-							'title' : data[product].title,
-							'binding' : data[product].binding	
-					};
-					row = this.add_infobox(context, row, fields);
-					// register event with call-back for id search context
-					$(row).click(table_row_clicked);
-					table.appendChild(row);
-			}
-			break;
-		case 'id':
-			table.setAttribute('class', 'asin');
-			for (var site in data) {
-				var row = document.createElement('tr');
-				row.setAttribute('id', site);
-				row = this.add_infobox(context, row, { 'site': site });
-				var list_prices = {
-						'list_amount' : data[site].list_amount,
-						'list_currency' : data[site].list_currency						
-				};
-				row = this.add_infobox(context, row, list_prices);
-				var new_prices = {
-						'new_amount' : data[site].new_amount,
-						'new_currency' : data[site].new_currency	
-				};
-				row = this.add_infobox(context, row, new_prices);
-				var used_prices = {
-						'used_amount' : data[site].used_amount,
-						'used_currency' : data[site].used_currency	
-				};
-				row = this.add_infobox(context, row, used_prices);
-				// register event with call-back for id search context
-				$(row).click(shop_clicked(data[site].url));
-				table.appendChild(row);
+	case 'keywords':
+		table.setAttribute('class', 'keywords');
+		for (var i = 0; i < data.length; i++) {
+			//console.log('build_table');
+			//console.log(data[i]);
+			var row = document.createElement('tr');
+			row.setAttribute('id', data[i].asin);
+			row = this.add_thumb(row, data[i].image, 150);
+			var fields = {
+					'artist': data[i].artist,
+					'title' : data[i].title,
+					'binding' : data[i].binding	
+			};
+			row = this.add_infobox(context, row, fields);
+			// register event with call-back for id search context
+			$(row).click(table_row_clicked);
+			//console.log(row);
+			table.appendChild(row);
 		}
-			break;
-		default:
-			throw Exception('Presenter.build_table(). No context defined.');
-	};
+		break;
+	case 'id':
+		table.setAttribute('class', 'asin');
+		for (var i = 0; i < data.length; i++) {
+			var row = document.createElement('tr');
+			row.setAttribute('id', data[i].site);
+			row = this.add_infobox(context, row, { 'site': data[i].site });
+			var list_prices = {
+					'local_list_amount' : data[i].local_list_amount,
+					'local_list_currency' : data[i].local_currency,		
+					'list_amount' : data[i].list_amount,
+					'list_currency' : data[i].list_currency						
+			};
+			row = this.add_infobox(context, row, list_prices);
+			var new_prices = {
+					'local_new_amount' : data[i].local_new_amount,
+					'local_new_currency' : data[i].local_currency,		
+					'new_amount' : data[i].new_amount,
+					'new_currency' : data[i].new_currency	
+			};
+			row = this.add_infobox(context, row, new_prices);
+			var used_prices = {
+					'local_used_amount' : data[i].local_used_amount,
+					'local_used_currency' : data[i].local_currency,
+					'used_amount' : data[i].used_amount,
+					'used_currency' : data[i].used_currency	
+			};
+			row = this.add_infobox(context, row, used_prices);
+			// register event with call-back for id search context
+			$(row).click(shop_clicked(data[i].url));
+			table.appendChild(row);
+		}		
+		break;
+	default:
+		throw Exception('Presenter.build_table(). No context defined.');	
+	}
 	return table;
-};
+}
 
 Presenter.prototype.add_infobox = function(context, row, data) {
 	switch (context) { //TODO compact the switch options
@@ -322,6 +336,66 @@ Presenter.prototype.add_thumb = function(row, image_url, size) {
 	row.appendChild(img_field);
 	return row;
 };
+/**
+ * Converts a hierarchical json tree into a flat array of objects for sorting.
+ */
+Presenter.prototype.flatten = function(object) {
+	var flat_array = new Array;
+	for (var key in object) {
+		var elem = object[key];
+		if (key.length > 2) {
+		// must be asin
+			elem['asin'] = key; // save key in new list element
+		} else {
+			// must be site
+			elem['site'] = key;
+		};
+		flat_array.push(elem);
+	};
+	return flat_array;
+};
+/**
+ * Sort arrays of json objects.
+ * @constructor
+ */
+function Sorter() {
+	
+};
+/**
+ * Defines sort order for field in object.
+ */
+Sorter.prototype.sort_order = function(field, desc, cast) {
+	
+   desc = (desc) ? -1 : 1; // descending reverts
+
+   return function(a,b){
+
+       a = a[field];
+       b = b[field];
+
+       if (typeof(cast) != 'undefined'){
+           a = cast(a);
+           b = cast(b);
+       }
+
+       if (a<b) return desc * -1;
+       if (a>b) return desc * 1;
+       return 0;
+
+   };
+};
+
+Sorter.prototype.field_sort = function(arr, field, desc) {
+	// TODO add string sorting
+	if (field == 'local_list_amount' || field == 'local_new_aount' || field == 'local_used_amount') {
+		arr.sort(this.sort_order(field, desc, parseInt));
+	} else {
+//		// case-insensitive
+		arr.sort(this.sort_order(field, desc, function(a){return a.toUpperCase();}));
+	}
+	return arr;
+}
+
 /*
  * Utility classes
  */
@@ -364,3 +438,25 @@ function OptionsHandler() {
 function Cookie() {
 	
 }
+
+/*
+ * Test driver
+ */
+function test_Presenter() {
+	console.log('BEGIN testing Presenter.');
+	var test_object = {"DE":{"asin":"B000O5AYCA","url":"http:\/\/www.amazon.de\/Boxer-National\/dp\/B000O5AYCA%3FSubscriptionId%3DAKIAJR76TSRZ7NZC3HWA%26tag%3Dcmartel-20%26linkCode%3Dxm2%26camp%3D2025%26creative%3D165953%26creativeASIN%3DB000O5AYCA","image":"http:\/\/ecx.images-amazon.com\/images\/I\/51Lauf6p2aL.jpg","artist":"The National","title":"Boxer","binding":"Audio CD","list_amount":"19.28","list_currency":"EUR","new_amount":"6.20","new_currency":"EUR","used_amount":"6.14","used_currency":"EUR","local_list_amount":"19.28","local_new_amount":"6.20","local_used_amount":"6.14","local_currency":"EUR"},"UK":{"asin":"B000O5AYCA","url":"http:\/\/www.amazon.co.uk\/Boxer-National\/dp\/B000O5AYCA%3FSubscriptionId%3DAKIAJR76TSRZ7NZC3HWA%26tag%3Dcmartel-20%26linkCode%3Dxm2%26camp%3D2025%26creative%3D165953%26creativeASIN%3DB000O5AYCA","image":"http:\/\/ecx.images-amazon.com\/images\/I\/51Lauf6p2aL.jpg","artist":"The National","title":"Boxer","binding":"Audio CD","list_amount":"10.99","list_currency":"GBP","new_amount":"4.99","new_currency":"GBP","used_amount":"4.64","used_currency":"GBP","local_list_amount":"12.91","local_new_amount":"5.86","local_used_amount":"5.45","local_currency":"EUR"}}
+	var p = new Presenter();
+	var f = p.flatten(test_object);
+	console.log('deep');
+	console.log(test_object);
+	console.log('flattened');
+	console.log(f);
+	console.log('sorted');
+	s = new Sorter();
+	var f_sorted = s.field_sort(f, 'local_list_amount', false);
+	console.log(f_sorted);
+	var f_sorted = s.field_sort(f, 'list_currency', false);
+	console.log(f_sorted);
+	console.log('END testing Presenter.');
+}
+//test_Presenter();
