@@ -8,6 +8,8 @@
  * register global constants with the window object
  */
 window.DEFAULT_SEARCHTEXT = 'enter search term here';
+window.DEFAULT_STORES = ['CA', 'DE', 'FR', 'JP', 'UK', 'US'];
+window.DEFAULT_CATEGORY = 'All';
 /*
  * AJAX default parameters
  */
@@ -21,6 +23,7 @@ $.ajaxSetup({
  * Register event handlers with call-backs.
  */
 $(document).ready(function() {
+	cb_page_init();
 	$('#searchbar').keypress(function(event) {
 		if (event.keyCode == 13) {
 			cb_searchbtn_clicked();
@@ -33,11 +36,46 @@ $(document).ready(function() {
 	$('#configbtn').click(function() {
 		cb_configbtn_clicked();
 	});
+	$('#selectable_stores > li').mousedown(function() {
+		cb_selecting_store($(this));	
+    });
+	$('#selectable_stores > li').click(function() {
+		cb_selected_store($(this));
+    });
+	$('#selectable_categories > li').mousedown(function() {
+		cb_selecting_categories($(this));
+    });
+	$('#selectable_categories > li').click(function() {
+		cb_selected_categories($(this));
+    });
 });
 
 /*
  * Call-back functions
  */
+function cb_page_init() { 
+	var settings = new Settings();
+	settings.restore();
+}
+
+function cb_selecting_store(object) {
+	object.addClass("selecting").siblings().removeClass("selecting");	
+}
+
+function cb_selected_store(object) {
+	object.removeClass("selecting");
+	object.toggleClass("selected");	
+}
+
+function cb_selecting_categories(object) {
+	//$(this).siblings().removeClass("selected");
+	object.addClass("selecting").siblings().removeClass("selecting");	
+}
+
+function cb_selected_categories(object) {
+	object.removeClass("selecting");
+	object.addClass("selected").siblings().removeClass("selected");
+}
 
 function cb_searchbtn_clicked() {
 	if (($('#searchbar').val() != '') &&                // no vane searches
@@ -420,22 +458,87 @@ Exception.prototype.toString = function() {
  * @constructor
  */
 function Settings() {
-	
+	this.stores = []; // selected stores to query
+	this.local = '';  // local for currency conversion
+	this.categories = ''; // product categories to search
 }
-
 /**
- * @class OptionsHandler
- * @constructor
+ * @method
  */
-function OptionsHandler() {
-	
+Settings.prototype.get_browser_local = function() {
+	var language_code = window.navigator.userLanguage || window.navigator.language;
+	if (language_code == 'en-ca') {
+		var browser_local = 'CA';
+	} else if (language_code == 'de' || language_code == 'de-at' || language_code == 'de-de' ||
+			   language_code == 'de-li' || language_code == 'de-lu' || language_code == 'de-ch') {
+		var browser_local = 'DE';
+	} else if (language_code == 'fr' || language_code == 'fr-be' || language_code == 'fr-fr' ||
+			   language_code == 'fr-lu' || language_code == 'fr-mc' || language_code == 'fr-ch') {
+		var browser_local = 'FR';
+	} else if (language_code == 'ja') {
+		var browser_local = 'JP';
+	} else if (language_code == 'en-gb' || language_code == 'en-ie') {
+		var browser_local = 'UK';
+	} else if (language_code == 'en' || language_code == 'en-us') {
+		var browser_local = 'US';
+	} else { // use US as default for all other languages
+		var browser_local = 'US';
+	}
+	return browser_local;
 }
-
+/**
+ * @method
+ */
+Settings.prototype.set_default = function() {
+	this.stores = window.DEFAULT_STORES;;
+	this.local = this.get_browser_local();
+	this.category = window.DEFAULT_CATEGORY;
+	this.sync_css(this.stores, this.local, this.category);
+}
+/**
+ * @method
+ */
+Settings.prototype.sync_css = function(stores, local, category) {
+	// we fire the right call-back event
+	var category_selector = '#' + category;
+	var category_object = $(category_selector);
+	cb_selected_categories(category_object);
+	
+	for (var i = 0; i < stores.length; i++) {
+		var store_selector = '#' + stores[i];
+		var store_object = $(store_selector);
+		cb_selected_store(store_object);
+	}
+	
+	// TODO need local choice anchor in index.html
+}
+/**
+ * @method
+ */
+Settings.prototype.restore = function() {
+	if (navigator.cookieEnabled == false) {
+		this.set_default();		
+	} else {
+		this.set_default();		
+	}	
+}
 /**
  * @class Cookie
  * @constructor
  */
 function Cookie() {
+	
+}
+/**
+ * @method
+ */
+Cookie.prototype.bake = function() {
+	
+}
+/**
+ * @method
+ */
+Cookie.prototype.munch = function() {
 	
 }
 
