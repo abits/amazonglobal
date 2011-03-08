@@ -10,6 +10,7 @@
 window.DEFAULT_SEARCHTEXT = 'enter search term here';
 window.DEFAULT_STORES = ['CA', 'DE', 'FR', 'JP', 'UK', 'US'];
 window.DEFAULT_CATEGORY = 'All';
+window.DEFAULT_LOCAL = 'US';
 /*
  * AJAX default parameters
  */
@@ -42,6 +43,12 @@ $(document).ready(function() {
 	$('#selectable_stores > li').click(function() {
 		cb_selected_store($(this));
     });
+	$('#selectable_locals > li').mousedown(function() {
+		cb_selecting_locals($(this));	
+    });
+	$('#selectable_locals > li').click(function() {
+		cb_selected_locals($(this));
+    });
 	$('#selectable_categories > li').mousedown(function() {
 		cb_selecting_categories($(this));
     });
@@ -68,7 +75,6 @@ function cb_selected_store(object) {
 }
 
 function cb_selecting_categories(object) {
-	//$(this).siblings().removeClass("selected");
 	object.addClass("selecting").siblings().removeClass("selecting");	
 }
 
@@ -77,16 +83,30 @@ function cb_selected_categories(object) {
 	object.addClass("selected").siblings().removeClass("selected");
 }
 
+function cb_selecting_locals(object) {
+	object.addClass("selecting").siblings().removeClass("selecting");		
+}
+
+function cb_selected_locals(object) {
+	object.removeClass("selecting");
+	object.addClass("selected").siblings().removeClass("selected");	
+}
+
 function cb_searchbtn_clicked() {
 	if (($('#searchbar').val() != '') &&                // no vane searches
 		($('#searchbar').val() != window.DEFAULT_SEARCHTEXT)) {
 		var context = "keywords";
+	// remember settings
+	var settings = new Settings();
+	settings.save();
+	// start search
   	var keywords_search = new InputHandler(context);
   	var params = keywords_search.collect_parameters($('#searchbar').val());
   	var query = new RequestAgent(context);
   	query.query_server(params);
   }
 }
+
 
 function cb_configbtn_clicked() {
 	
@@ -110,7 +130,7 @@ function queryFailed(context) {
 };
 
 function table_row_clicked() {
-	console.log('row: ' + $(this).attr('id') + ' clicked');
+	//console.log('row: ' + $(this).attr('id') + ' clicked');
 	var context = "id";
 	var keywords_search = new InputHandler(context);
 	var params = keywords_search.collect_parameters($(this).attr('id'));
@@ -211,15 +231,15 @@ RequestAgent.prototype.query_server = function(parameters) {
  */
 function Presenter(context, data) {
 	this.context = context;
-	this.data = data; // TODO data needs to be converted to array for sorting!
+	this.data = data;
 }
 /**
  * Visualizes the data property of an instance; context-sensitive.
  * @method
  */
 Presenter.prototype.view = function() {
-	console.log('view:');
-	console.log(this.data);
+	//console.log('view:');
+	//console.log(this.data);
 	// represent data as flat array for table builder
 	var flat_data = this.flatten(this.data); 
 	// default sort by list price ascending
@@ -243,7 +263,7 @@ Presenter.prototype.view = function() {
 
 Presenter.prototype.build_product_header = function(context, data) {
 	for (site in data) { break; }; // get the first key from data
-																 // TODO should come from Settings instance
+								   // TODO should come from Settings instance
 	if (context == 'id') {
 		var header = document.createElement('div');
 		var table = document.createElement('table');
@@ -460,7 +480,31 @@ Exception.prototype.toString = function() {
 function Settings() {
 	this.stores = []; // selected stores to query
 	this.local = '';  // local for currency conversion
-	this.categories = ''; // product categories to search
+	this.category = ''; // product categories to search
+}
+/**
+ * @method
+ */
+Settings.prototype.save = function() {
+	this.category = $('#selectable_categories > li.selected').attr('id');
+	this.local = $('#selectable_locals > li.selected').attr('id');
+	 // TODO ugly, clean up below
+	var store_ids = $('#selectable_stores > li.selected').map(function() {
+		return $(this).attr('id');
+	});
+	this.stores = [];
+	for (var id in store_ids) {
+		if (store_ids[id] == "CA" || store_ids[id] == "DE" || store_ids[id] == "FR" || store_ids[id] == "JP" || 
+		store_ids[id] == "UK" || store_ids[id] == "US") {
+			this.stores.push(store_ids[id]);
+		}
+	}
+
+	var cookie_data = { 'category' : String(this.category),
+						'local' : String(this.local),
+						'stores' : this.stores};
+	var cookie = new Cookie; // set cookie with last search preferences
+	cookie.store(cookie_data);
 }
 /**
  * @method
@@ -481,8 +525,8 @@ Settings.prototype.get_browser_local = function() {
 		var browser_local = 'UK';
 	} else if (language_code == 'en' || language_code == 'en-us') {
 		var browser_local = 'US';
-	} else { // use US as default for all other languages
-		var browser_local = 'US';
+	} else { // use default
+		var browser_local = window.DEFAULT_LOCAL;
 	}
 	return browser_local;
 }
@@ -490,7 +534,7 @@ Settings.prototype.get_browser_local = function() {
  * @method
  */
 Settings.prototype.set_default = function() {
-	this.stores = window.DEFAULT_STORES;;
+	this.stores = window.DEFAULT_STORES;
 	this.local = this.get_browser_local();
 	this.category = window.DEFAULT_CATEGORY;
 	this.sync_css(this.stores, this.local, this.category);
@@ -505,12 +549,14 @@ Settings.prototype.sync_css = function(stores, local, category) {
 	cb_selected_categories(category_object);
 	
 	for (var i = 0; i < stores.length; i++) {
-		var store_selector = '#' + stores[i];
+		var store_selector = '#selectable_stores > #' + stores[i];
 		var store_object = $(store_selector);
 		cb_selected_store(store_object);
 	}
-	
-	// TODO need local choice anchor in index.html
+
+	var local_selector = '#selectable_locals > #' + local;
+	var local_object = $(local_selector);
+	cb_selected_locals(local_object);
 }
 /**
  * @method
@@ -519,7 +565,14 @@ Settings.prototype.restore = function() {
 	if (navigator.cookieEnabled == false) {
 		this.set_default();		
 	} else {
-		this.set_default();		
+		var cookie = new Cookie();
+		var stored_preferences = cookie.read();
+		console.log(stored_preferences['stores']);
+		this.stores = stored_preferences['stores'] || window.DEFAULT_STORES;
+		this.category = stored_preferences['category'] || window.DEFAULT_CATEGORY;
+		this.local = stored_preferences['local'] || window.DEFAULT_LOCAL;
+		//console.log(this.stores, this.local, this.category);	
+		this.sync_css(this.stores, this.local, this.category);
 	}	
 }
 /**
@@ -527,19 +580,72 @@ Settings.prototype.restore = function() {
  * @constructor
  */
 function Cookie() {
-	
 }
+Cookie.prototype.LIFETIME = 600; // stay alive for 10 min
 /**
  * @method
  */
-Cookie.prototype.bake = function() {
-	
+Cookie.prototype.store = function(data, timeout) {
+	for (var key in data) {
+		if (data[key] instanceof Array) {
+			console.log('store: ' + data[key]);
+			var subarray = new Array;
+			for (var item in data[key]) {
+				subarray.push(data[key][item]);
+			}
+			var substring = subarray.join();
+		} else {
+			var substring = data[key];
+		}
+		substring = key + "=" + encodeURIComponent(substring);
+		document.cookie = substring;
+	}
+	// are we supposed to remove the cookie?
+	if (timeout == undefined) {
+		timeoutstring = "max-age=" + this.LIFETIME; 
+	} else {
+		if (timeout == -1) {
+	        var date = new Date();
+	        date.setTime(date.getTime()-(60*60*1000)); // 1 hour in the past
+	        var turn_back = date.toGMTString();
+			timeoutstring = "max-age=" + turn_back; 
+		} else {
+			timeoutstring = "max-age=" + (timeout * 360);		
+		}
+	}
+	document.cookie = timeoutstring;
 }
+
 /**
  * @method
  */
-Cookie.prototype.munch = function() {
-	
+Cookie.prototype.read = function() {
+	var parsed_data = new Object;
+	var cookie_data = document.cookie;
+	var arr_data = cookie_data.split(';');
+	for (var i = 0; i < arr_data.length; i++) {
+		var key_value_pair = arr_data[i].split("=");
+		var key = $.trim(key_value_pair[0]);
+		var value = decodeURIComponent(key_value_pair[1]);
+		if (value.indexOf(",") != -1) {
+		// does the value contain the char ","? then build an array
+			parsed_data[key] = value.split(',');
+		} else {
+			parsed_data[key] = value;
+		}
+	}
+	return parsed_data;
+}
+
+/**
+ * @method
+ */
+Cookie.prototype.remove = function() {
+	var null_data = { 'stores' : "",
+			  		  'local' : "",
+			          'category' : "" };
+	var timeout = -1; // set timeout to false
+	this.store(null_data, timeout);
 }
 
 /*
@@ -563,3 +669,29 @@ function test_Presenter() {
 	console.log('END testing Presenter.');
 }
 //test_Presenter();
+function test_Cookie() {
+	var stores = ['DE', 'UK', 'CA'];
+	var test_data = { 'stores' : stores,
+					  'local' : 'US',
+					  'category' : 'All' };
+
+	var t_cookie = new Cookie();
+	//t_cookie.store(test_data);
+	//console.log('store');
+	var read_data = t_cookie.read();
+	console.log('read');
+	console.log(read_data);
+	//var r = t_cookie.remove();
+	//console.log('remove');
+	//console.log(r);
+}
+
+//test_Cookie();
+
+
+
+
+
+
+
+
