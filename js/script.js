@@ -11,13 +11,19 @@ window.DEFAULT_SEARCHTEXT = 'enter search term here';
 window.DEFAULT_STORES = ['CA', 'DE', 'FR', 'JP', 'UK', 'US'];
 window.DEFAULT_CATEGORY = 'All';
 window.DEFAULT_LOCAL = 'US';
+// default sort by list price ascending
+window.DEFAULT_ID_SORT_COL = 'Amazon';
+window.DEFAULT_ID_SORT_ORDER = false; // i.e. descending = false
+
+window.container = new Container(); // global data storage; TODO replace this with message passing
+
 /*
  * AJAX default parameters
  */
 $.ajaxSetup({
 	dataType: 'json',
 	type: 'GET',
-  url: 'http://127.0.0.1/~chm/AmazonGlobal/php/aws.php'
+	url: 'http://127.0.0.1/~chm/AmazonGlobal/php/aws.php'
 });	
 
 /*
@@ -25,6 +31,7 @@ $.ajaxSetup({
  */
 $(document).ready(function() {
 	cb_page_init();
+		
 	$('#searchbar').keypress(function(event) {
 		if (event.keyCode == 13) {
 			cb_searchbtn_clicked();
@@ -55,6 +62,7 @@ $(document).ready(function() {
 	$('#selectable_categories > li').click(function() {
 		cb_selected_categories($(this));
     });
+
 });
 
 /*
@@ -63,6 +71,12 @@ $(document).ready(function() {
 function cb_page_init() { 
 	var settings = new Settings();
 	settings.restore();
+}
+
+function cb_id_page_init() {
+	$('.table_heading').click(function() {
+		cb_table_heading_clicked($(this).attr('id'));
+	});	
 }
 
 function cb_selecting_store(object) {
@@ -107,6 +121,11 @@ function cb_searchbtn_clicked() {
   }
 }
 
+function cb_table_heading_clicked(string_id) {
+	console.log('click on ' + string_id);
+	//TODO here comes the call to the re-viewing action
+}
+
 
 function cb_configbtn_clicked() {
 	
@@ -114,17 +133,15 @@ function cb_configbtn_clicked() {
 
 function querySucceeded(context) {
 	return function(json, status) {
-		this.status = status;
-		this.json = json;
-		var presentation = new Presenter(context, json);
+		window.container.set(context, json);
+		var presentation = new Presenter();
+		presentation.set(context, json);
 		presentation.view();
 	};
 };
 
 function queryFailed(context) {
 	return function(json, status) {
-		this.status = status;
-		this.json = json;
 		// call Viewer class with context and json
 	};
 };
@@ -143,6 +160,24 @@ function shop_clicked(url) {
 		window.open(url);
 	};
 };
+/*
+ * Model class for in-session data storage
+ */
+function Container() {
+	this.context = new String();
+	this.json = new Object();
+}
+
+Container.prototype.set = function(context, json) {
+	this.context = context;
+	this.json = json;
+}
+
+Container.prototype.get = function() {
+	return [this.context, this.json];
+}
+
+
 /*
  * Controller classes
  */
@@ -207,8 +242,6 @@ InputHandler.prototype.get_parameters = function() {
  */
 function RequestAgent(context) {
 	this.context = context;
-	this.status = new String();
-	this.json = new Object();
 }
 /**
  * query_server: initiate HTTP request to server
@@ -229,7 +262,12 @@ RequestAgent.prototype.query_server = function(parameters) {
  * Presents response data to browser.
  * @constructor
  */
-function Presenter(context, data) {
+function Presenter() {
+	this.context = new String();
+	this.data = new Object();
+}
+
+Presenter.prototype.set = function(context, data) {
 	this.context = context;
 	this.data = data;
 }
@@ -237,24 +275,44 @@ function Presenter(context, data) {
  * Visualizes the data property of an instance; context-sensitive.
  * @method
  */
-Presenter.prototype.view = function() {
-	//console.log('view:');
-	//console.log(this.data);
+Presenter.prototype.view = function(column, order) {
 	// represent data as flat array for table builder
 	var flat_data = this.flatten(this.data); 
-	// default sort by list price ascending
-	var sorter = new Sorter();
-	sorter.field_sort(flat_data, 'local_list_amount', false);
 	switch (this.context) {
 		case 'keywords':
 			var table = this.build_table(this.context, flat_data);
 			$('#results > table').replaceWith(table);
 			break;
 		case 'id':
-			var result_table = this.build_table(this.context, flat_data);
+			var id_sort_fields = { 'Site' : '',
+								   'Amazon' : 'local_list_amount',
+								   'New' : 'local_new_amount',
+								   'Used' : 'local_used_amount'
+			}
+			var id_col_titles = [];
+			for (var key in id_sort_fields) {
+				id_col_titles.push(key);
+			}
+			var id_sort_col = id_col_titles[column] || window.DEFAULT_ID_SORT_COL;
+			var id_sort_order = order || window.DEFAULT_ID_SORT_ORDER;
+			var sorter = new Sorter();
+			//debug
+			for (var i = 0; i < flat_data.length; i++) {
+				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+			}	
+			
+			sorter.field_sort(flat_data, id_sort_fields[id_sort_col], false);
+			
+			//debug
+			for (var i = 0; i < flat_data.length; i++) {
+				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+			}	
+			
+			var result_table = this.build_table(this.context, flat_data, id_col_titles);
 			$('#results > table').replaceWith(result_table);
 			var product_header = this.build_product_header(this.context, this.data);
 			$('#results').children().prepend(product_header);
+			cb_id_page_init();
 			break;
 		default: 
 			throw Exception('Presenter. No context defined.');
@@ -263,7 +321,7 @@ Presenter.prototype.view = function() {
 
 Presenter.prototype.build_product_header = function(context, data) {
 	for (site in data) { break; }; // get the first key from data
-								   // TODO should come from Settings instance
+								   // TODO should come from Settings instance -> local
 	if (context == 'id') {
 		var header = document.createElement('div');
 		var table = document.createElement('table');
@@ -271,21 +329,37 @@ Presenter.prototype.build_product_header = function(context, data) {
 		table.setAttribute('class', 'product_header');
 		var row = document.createElement('tr');
 		row = this.add_thumb(row, data[site].image, 150);
-		var fields = {
-				'artist': data[site].artist, 
-				'title' : data[site].title,
-				'binding' : data[site].binding	};
-			row = this.add_infobox(context, row, fields);
-			table.appendChild(row);
+		var fields = {'artist': data[site].artist, 
+				      'title' : data[site].title,
+				      'binding' : data[site].binding};
+		row = this.add_infobox(context, row, fields);
+		table.appendChild(row);
 		}
 	return table;
 };
+
+Presenter.prototype.build_table_header = function(context, headings) {
+	if (context == 'id') {
+		var header = document.createElement('div');
+		header.setAttribute('id', 'table_header');
+		var row = document.createElement('tr');	
+		row.setAttribute('class', 'table_header');
+		for (var i = 0; i < headings.length; i++) {
+			var cell = document.createElement('td');
+			cell.className += 'table_heading ' + context;
+			cell.setAttribute('id', headings[i]);
+			cell.innerHTML = headings[i]; //TODO put order symbols here
+			row.appendChild(cell);			
+		}
+	}
+	return row;
+}
 /**
  * @param $context
  * @param $data
  * @return
  */
-Presenter.prototype.build_table = function(context, data) {
+Presenter.prototype.build_table = function(context, data, id_col_titles) {
 	var table = document.createElement('table');
 	switch (context) {
 	case 'keywords':
@@ -338,12 +412,24 @@ Presenter.prototype.build_table = function(context, data) {
 			// register event with call-back for id search context
 			$(row).click(shop_clicked(data[i].url));
 			table.appendChild(row);
-		}		
+		}
+		var headings = this.build_table_header('id', id_col_titles);
+		table.insertBefore(headings, table.firstChild);
 		break;
 	default:
 		throw Exception('Presenter.build_table(). No context defined.');	
 	}
 	return table;
+}
+
+Presenter.prototype.add_ordericon = function(context, ascending) {
+	var img = new Image();
+	if (ascending) {
+		img.src = '../images/asc_order.png';
+	} else {
+		img.src = '../images/desc_order.png';
+	}
+	return img;
 }
 
 Presenter.prototype.add_infobox = function(context, row, data) {
@@ -417,7 +503,8 @@ Presenter.prototype.flatten = function(object) {
  * @constructor
  */
 function Sorter() {
-	
+	this.column = 0;  			// keep track of sort column
+	this.order = 'ascending';   // keep track of sort order 
 };
 /**
  * Defines sort order for field in object.
@@ -445,8 +532,9 @@ Sorter.prototype.sort_order = function(field, desc, cast) {
 
 Sorter.prototype.field_sort = function(arr, field, desc) {
 	// TODO add string sorting
-	if (field == 'local_list_amount' || field == 'local_new_aount' || field == 'local_used_amount') {
-		arr.sort(this.sort_order(field, desc, parseInt));
+	if (field == 'local_list_amount' || field == 'local_new_amount' || field == 'local_used_amount') {
+		//arr.sort(this.sort_order(field, desc, parseInt));
+		arr.sort(this.sort_order(field, desc, parseFloat));
 	} else {
 //		// case-insensitive
 		arr.sort(this.sort_order(field, desc, function(a){return a.toUpperCase();}));
@@ -581,7 +669,7 @@ Settings.prototype.restore = function() {
  */
 function Cookie() {
 }
-Cookie.prototype.LIFETIME = 600; // stay alive for 10 min
+Cookie.prototype.LIFETIME = 604800; // stay alive for 1w
 /**
  * @method
  */
