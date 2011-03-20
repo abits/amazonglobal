@@ -123,7 +123,14 @@ function cb_searchbtn_clicked() {
 
 function cb_table_heading_clicked(string_id) {
 	console.log('click on ' + string_id);
-	//TODO here comes the call to the re-viewing action
+	console.log(window.container);
+	var current_container = window.container.get();
+	var presentation = new Presenter();
+	presentation.set(current_container[0], current_container[2]);
+	var column = string_id;
+	// TODO add class ascending/descending to sort column, read out here
+	// and fill in for order below:
+	presentation.view(column, !order); // toggle order
 }
 
 
@@ -296,19 +303,20 @@ Presenter.prototype.view = function(column, order) {
 			var id_sort_col = id_col_titles[column] || window.DEFAULT_ID_SORT_COL;
 			var id_sort_order = order || window.DEFAULT_ID_SORT_ORDER;
 			var sorter = new Sorter();
-			//debug
-			for (var i = 0; i < flat_data.length; i++) {
-				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
-			}	
-			
+//			//debug
+//			for (var i = 0; i < flat_data.length; i++) {
+//				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+//			}	
+//			
 			sorter.field_sort(flat_data, id_sort_fields[id_sort_col], false);
+//			
+//			//debug
+//			for (var i = 0; i < flat_data.length; i++) {
+//				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+//			}	
 			
-			//debug
-			for (var i = 0; i < flat_data.length; i++) {
-				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
-			}	
-			
-			var result_table = this.build_table(this.context, flat_data, id_col_titles);
+			var result_table = this.build_table(this.context, flat_data, 
+					id_col_titles, id_sort_col, id_sort_order);
 			$('#results > table').replaceWith(result_table);
 			var product_header = this.build_product_header(this.context, this.data);
 			$('#results').children().prepend(product_header);
@@ -338,15 +346,26 @@ Presenter.prototype.build_product_header = function(context, data) {
 	return table;
 };
 
-Presenter.prototype.build_table_header = function(context, headings) {
+Presenter.prototype.build_table_header = function(context, headings, 
+		id_sort_col, id_sort_order) {
 	if (context == 'id') {
+		if (id_sort_order) {
+			var order = 'descending';
+		} else {
+			var order = 'ascending';
+		}
 		var header = document.createElement('div');
 		header.setAttribute('id', 'table_header');
 		var row = document.createElement('tr');	
 		row.setAttribute('class', 'table_header');
 		for (var i = 0; i < headings.length; i++) {
 			var cell = document.createElement('td');
-			cell.className += 'table_heading ' + context;
+			if (headings[i] == id_sort_col) {
+				cell.className += 'table_heading sort_header ' + context
+				+ ' ' + order;
+			} else {
+				cell.className += 'table_heading ' + context;
+			}
 			cell.setAttribute('id', headings[i]);
 			cell.innerHTML = headings[i]; //TODO put order symbols here
 			row.appendChild(cell);			
@@ -359,7 +378,8 @@ Presenter.prototype.build_table_header = function(context, headings) {
  * @param $data
  * @return
  */
-Presenter.prototype.build_table = function(context, data, id_col_titles) {
+Presenter.prototype.build_table = function(context, data, id_col_titles, 
+		id_sort_col, id_sort_order) {
 	var table = document.createElement('table');
 	switch (context) {
 	case 'keywords':
@@ -388,32 +408,45 @@ Presenter.prototype.build_table = function(context, data, id_col_titles) {
 			var row = document.createElement('tr');
 			row.setAttribute('id', data[i].site);
 			row = this.add_infobox(context, row, { 'site': data[i].site });
-			var list_prices = {
-					'local_list_amount' : data[i].local_list_amount,
-					'local_list_currency' : data[i].local_currency,		
-					'list_amount' : data[i].list_amount,
-					'list_currency' : data[i].list_currency						
-			};
-			row = this.add_infobox(context, row, list_prices);
-			var new_prices = {
-					'local_new_amount' : data[i].local_new_amount,
-					'local_new_currency' : data[i].local_currency,		
-					'new_amount' : data[i].new_amount,
-					'new_currency' : data[i].new_currency	
-			};
-			row = this.add_infobox(context, row, new_prices);
-			var used_prices = {
-					'local_used_amount' : data[i].local_used_amount,
-					'local_used_currency' : data[i].local_currency,
-					'used_amount' : data[i].used_amount,
-					'used_currency' : data[i].used_currency	
-			};
-			row = this.add_infobox(context, row, used_prices);
+			if (data[i].local_list_amount != 0.00) {
+				var list_prices = {
+						'local_list_amount' : data[i].local_list_amount,
+						'local_list_currency' : data[i].local_currency,		
+						'list_amount' : data[i].list_amount,
+						'list_currency' : data[i].list_currency						
+				};
+				row = this.add_infobox(context, row, list_prices);
+			} else {
+				row = this.add_infobox(context, row);
+			}
+			if (data[i].local_new_amount != 0.00) {
+				var new_prices = {
+						'local_new_amount' : data[i].local_new_amount,
+						'local_new_currency' : data[i].local_currency,		
+						'new_amount' : data[i].new_amount,
+						'new_currency' : data[i].new_currency	
+				};
+				row = this.add_infobox(context, row, new_prices);
+			} else {
+				row = this.add_infobox(context, row);
+			}
+			if (data[i].local_used_amount != 0.00) {
+				var used_prices = {
+						'local_used_amount' : data[i].local_used_amount,
+						'local_used_currency' : data[i].local_currency,
+						'used_amount' : data[i].used_amount,
+						'used_currency' : data[i].used_currency	
+				};
+				row = this.add_infobox(context, row, used_prices);
+			} else {
+				row = this.add_infobox(context, row);				
+			}
 			// register event with call-back for id search context
 			$(row).click(shop_clicked(data[i].url));
 			table.appendChild(row);
 		}
-		var headings = this.build_table_header('id', id_col_titles);
+		var headings = this.build_table_header('id', id_col_titles, 
+				id_sort_col, id_sort_order);
 		table.insertBefore(headings, table.firstChild);
 		break;
 	default:
@@ -453,15 +486,19 @@ Presenter.prototype.add_infobox = function(context, row, data) {
 			var cell = document.createElement('td');
 			cell.setAttribute('class', 'infobox');
 			cell.setAttribute('class', context);
-			var list = document.createElement('ul');
-			for (var field in data) {
-				info_item = document.createElement('li');
-				info_item.setAttribute('class', field);
-				info_text = document.createTextNode(data[field]);
-				info_item.appendChild(info_text);
-				list.appendChild(info_item);
-			};
-			cell.appendChild(list);
+			if (data) {
+				var list = document.createElement('ul');
+				for (var field in data) {
+					if (data[field]) {
+						info_item = document.createElement('li');
+						info_item.setAttribute('class', field);
+						info_text = document.createTextNode(data[field]);
+						info_item.appendChild(info_text);
+					}
+					list.appendChild(info_item);
+				};
+				cell.appendChild(list);
+			}
 			row.appendChild(cell);
 			break;
 		default:
