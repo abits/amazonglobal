@@ -75,7 +75,7 @@ function cb_page_init() {
 
 function cb_id_page_init() {
 	$('.table_heading').click(function() {
-		cb_table_heading_clicked($(this));
+		cb_table_heading_clicked($(this).attr('id'));
 	});	
 }
 
@@ -121,16 +121,15 @@ function cb_searchbtn_clicked() {
   }
 }
 
-function cb_table_heading_clicked(heading) {
+function cb_table_heading_clicked(string_id) {
+	console.log('click on ' + string_id);
+	console.log(window.container);
+	var current_container = window.container.get();
 	var presentation = new Presenter();
-	presentation.set(window.container.context, window.container.json);
-	var column = heading.attr('id');
-	if (heading.hasClass('descending')) {
-		var order = true;
-	} else {
-		var order = false;
-	};
-	console.log(column, !order);
+	presentation.set(current_container[0], current_container[2]);
+	var column = string_id;
+	// TODO add class ascending/descending to sort column, read out here
+	// and fill in for order below:
 	presentation.view(column, !order); // toggle order
 }
 
@@ -301,19 +300,23 @@ Presenter.prototype.view = function(column, order) {
 			for (var key in id_sort_fields) {
 				id_col_titles.push(key);
 			}
-			var id_sort_col = id_sort_fields[column] || window.DEFAULT_ID_SORT_COL;
+			var id_sort_col = id_col_titles[column] || window.DEFAULT_ID_SORT_COL;
 			var id_sort_order = order || window.DEFAULT_ID_SORT_ORDER;
-//			//debug
-			console.log(id_sort_col, ' from ', column, ' and ', id_sort_fields[column]);
-			console.log(id_sort_order, ' from ', order);
 			var sorter = new Sorter();
-			sorter.field_sort(flat_data, id_sort_col, id_sort_order);
-
-//			console.log('view()');
-//			console.log(this.context, flat_data, 
-//					id_col_titles, id_sort_col, id_sort_order, id_sort_fields)
+//			//debug
+//			for (var i = 0; i < flat_data.length; i++) {
+//				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+//			}	
+//			
+			sorter.field_sort(flat_data, id_sort_fields[id_sort_col], false);
+//			
+//			//debug
+//			for (var i = 0; i < flat_data.length; i++) {
+//				console.log(flat_data[i].site, flat_data[i][id_sort_fields[id_sort_col]]);
+//			}	
+			
 			var result_table = this.build_table(this.context, flat_data, 
-					id_col_titles, id_sort_col, id_sort_order, id_sort_fields);
+					id_col_titles, id_sort_col, id_sort_order);
 			$('#results > table').replaceWith(result_table);
 			var product_header = this.build_product_header(this.context, this.data);
 			$('#results').children().prepend(product_header);
@@ -376,7 +379,7 @@ Presenter.prototype.build_table_header = function(context, headings,
  * @return
  */
 Presenter.prototype.build_table = function(context, data, id_col_titles, 
-		id_sort_col, id_sort_order, id_sort_fields) {
+		id_sort_col, id_sort_order) {
 	var table = document.createElement('table');
 	switch (context) {
 	case 'keywords':
@@ -412,11 +415,7 @@ Presenter.prototype.build_table = function(context, data, id_col_titles,
 						'list_amount' : data[i].list_amount,
 						'list_currency' : data[i].list_currency						
 				};
-				if (id_sort_fields[id_sort_col] == 'local_list_amount') {
-					row = this.add_infobox(context, row, list_prices, id_sort_order);					
-				} else {
-					row = this.add_infobox(context, row, list_prices);										
-				}
+				row = this.add_infobox(context, row, list_prices);
 			} else {
 				row = this.add_infobox(context, row);
 			}
@@ -427,11 +426,7 @@ Presenter.prototype.build_table = function(context, data, id_col_titles,
 						'new_amount' : data[i].new_amount,
 						'new_currency' : data[i].new_currency	
 				};
-				if (id_sort_fields[id_sort_col] == 'local_new_amount') {
-					row = this.add_infobox(context, row, new_prices, id_sort_order);					
-				} else {
-					row = this.add_infobox(context, row, new_prices);		
-				}
+				row = this.add_infobox(context, row, new_prices);
 			} else {
 				row = this.add_infobox(context, row);
 			}
@@ -442,11 +437,7 @@ Presenter.prototype.build_table = function(context, data, id_col_titles,
 						'used_amount' : data[i].used_amount,
 						'used_currency' : data[i].used_currency	
 				};
-				if (id_sort_fields[id_sort_col] == 'local_used_amount') {
-					row = this.add_infobox(context, row, used_prices, id_sort_order);					
-				} else {
-					row = this.add_infobox(context, row, used_prices);										
-				}
+				row = this.add_infobox(context, row, used_prices);
 			} else {
 				row = this.add_infobox(context, row);				
 			}
@@ -474,7 +465,7 @@ Presenter.prototype.add_ordericon = function(context, ascending) {
 	return img;
 }
 
-Presenter.prototype.add_infobox = function(context, row, data, id_sort_order) {
+Presenter.prototype.add_infobox = function(context, row, data) {
 	switch (context) { //TODO compact the switch options
 		case 'keywords': 
 			var cell = document.createElement('td');
@@ -505,11 +496,6 @@ Presenter.prototype.add_infobox = function(context, row, data, id_sort_order) {
 						info_item.appendChild(info_text);
 					}
 					list.appendChild(info_item);
-				};
-				if (id_sort_order == true) {
-					cell.className += " descending";
-				} else if (id_sort_order == false) {
-					cell.className += " ascending";				
 				};
 				cell.appendChild(list);
 			}
@@ -701,7 +687,6 @@ Settings.prototype.sync_css = function(stores, local, category) {
  * @method
  */
 Settings.prototype.restore = function() {
-	//this.set_default();
 	if (navigator.cookieEnabled == false) {
 		this.set_default();		
 	} else {
